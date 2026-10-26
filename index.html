@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="视频场景">
+<meta name="theme-color" content="#F2F2F7">
+<link rel="apple-touch-icon" href="icon.png">
+<link rel="icon" href="icon.png">
+<title>视频场景</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { height: 100%; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Helvetica Neue", sans-serif;
+    background: #F2F2F7;
+    color: #1C1C1E;
+    -webkit-font-smoothing: antialiased;
+    user-select: none;
+    -webkit-user-select: none;
+  }
+  .wrap {
+    max-width: 480px;
+    margin: 0 auto;
+    padding: calc(env(safe-area-inset-top, 0px) + 16px) 16px calc(env(safe-area-inset-bottom, 0px) + 24px);
+  }
+  header { text-align: center; padding: 12px 0 4px; }
+  header h1 { font-size: 22px; font-weight: 700; letter-spacing: 0.3px; }
+  header p { font-size: 13px; color: #8E8E93; margin-top: 4px; }
+
+  .summary {
+    display: flex; gap: 10px; margin: 16px 0;
+  }
+  .summary .card {
+    flex: 1; background: #fff; border-radius: 14px;
+    padding: 12px 0; text-align: center;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.04);
+  }
+  .summary .num { font-size: 22px; font-weight: 700; font-variant-numeric: tabular-nums; }
+  .summary .num small { font-size: 13px; font-weight: 500; color: #8E8E93; }
+  .summary .label { font-size: 11px; color: #8E8E93; margin-top: 2px; }
+
+  .list { display: flex; flex-direction: column; gap: 10px; }
+  .item {
+    background: #fff; border-radius: 16px;
+    padding: 14px 16px;
+    display: flex; align-items: center; gap: 14px;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.04);
+    cursor: pointer;
+    transition: transform 0.08s ease, background 0.15s ease;
+  }
+  .item:active { transform: scale(0.98); background: #FAFAFC; }
+  .badge {
+    width: 40px; height: 40px; border-radius: 12px;
+    background: #EAF2FF; color: #0A66FF;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 15px; font-weight: 700; flex-shrink: 0;
+  }
+  .item.done .badge { background: #E6F7EC; color: #30B15C; }
+  .info { flex: 1; min-width: 0; }
+  .info .title { font-size: 15px; font-weight: 600; line-height: 1.35; }
+  .info .sub { font-size: 12px; color: #8E8E93; margin-top: 3px; }
+  .track { height: 4px; background: #EFEFF4; border-radius: 2px; margin-top: 8px; overflow: hidden; }
+  .fill { height: 100%; width: 0%; background: #0A66FF; border-radius: 2px; transition: width 0.25s ease; }
+  .item.done .fill { background: #30B15C; }
+  .count {
+    font-size: 24px; font-weight: 700; font-variant-numeric: tabular-nums;
+    min-width: 52px; text-align: right; flex-shrink: 0;
+  }
+  .count small { font-size: 13px; font-weight: 500; color: #C7C7CC; }
+  .item.done .count { color: #30B15C; }
+
+  footer {
+    margin-top: 20px; text-align: center;
+  }
+  footer button {
+    font-family: inherit; font-size: 14px; color: #FF3B30;
+    background: #fff; border: none; border-radius: 12px;
+    padding: 10px 22px; cursor: pointer;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.04);
+  }
+  .toast {
+    position: fixed; left: 50%; bottom: 48px; transform: translateX(-50%) translateY(20px);
+    background: rgba(28,28,30,0.9); color: #fff; font-size: 13px;
+    padding: 9px 18px; border-radius: 20px; opacity: 0; pointer-events: none;
+    transition: all 0.25s ease; white-space: nowrap;
+  }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>b端视频场景</h1>
+    <p>每个场景拍满 100 条</p>
+  </header>
+
+  <div class="summary">
+    <div class="card">
+      <div class="num" id="totalNum">0<small> / 700</small></div>
+      <div class="label">总进度</div>
+    </div>
+    <div class="card">
+      <div class="num" id="doneNum">0<small> / 7</small></div>
+      <div class="label">已完成场景</div>
+    </div>
+  </div>
+
+  <div class="list" id="list"></div>
+
+  <footer><button id="resetAll">重置全部计数</button></footer>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+  var SCENES = [
+    { id: "01", title: "老板本人重要场所的介绍话术，可以 \u201C1.2.3.4\u201D 表情要到位" },
+    { id: "02", title: "生产流程的细节拍摄" },
+    { id: "03", title: "生产包装视频的素材" },
+    { id: "04", title: "打包发货的视频拍摄" },
+    { id: "05", title: "服务客户的场景拍摄" },
+    { id: "06", title: "展会视频和实力专利的证明视频" },
+    { id: "07", title: "老板展示不说话的走路、下车、做办公室的氛围视频" }
+  ];
+  var TARGET = 100;
+  var KEY = "bvideo_counts_v1";
+
+  function load() {
+    try { return JSON.parse(localStorage.getItem(KEY)) || {}; }
+    catch (e) { return {}; }
+  }
+  function save(d) {
+    try { localStorage.setItem(KEY, JSON.stringify(d)); } catch (e) {}
+  }
+  var counts = load();
+
+  var list = document.getElementById("list");
+  SCENES.forEach(function (s) {
+    var el = document.createElement("div");
+    el.className = "item";
+    el.id = "item-" + s.id;
+    el.innerHTML =
+      '<div class="badge">' + s.id + '</div>' +
+      '<div class="info">' +
+        '<div class="title">' + s.title + '</div>' +
+        '<div class="sub" id="sub-' + s.id + '"></div>' +
+        '<div class="track"><div class="fill" id="fill-' + s.id + '"></div></div>' +
+      '</div>' +
+      '<div class="count" id="cnt-' + s.id + '"><small>/ ' + TARGET + '</small></div>';
+    el.addEventListener("click", function () { inc(s.id); });
+    list.appendChild(el);
+  });
+
+  function inc(id) {
+    counts[id] = (counts[id] || 0) + 1;
+    if (counts[id] === TARGET) toast("场景 " + id + " 已完成 🎉");
+    save(counts); render();
+  }
+
+  function render() {
+    var total = 0, done = 0;
+    SCENES.forEach(function (s) {
+      var c = counts[s.id] || 0;
+      total += c;
+      if (c >= TARGET) done++;
+      var item = document.getElementById("item-" + s.id);
+      if (c >= TARGET) item.classList.add("done"); else item.classList.remove("done");
+      document.getElementById("cnt-" + s.id).innerHTML = c + '<small>/ ' + TARGET + '</small>';
+      document.getElementById("fill-" + s.id).style.width = Math.min(c / TARGET * 100, 100) + "%";
+      var remain = TARGET - c;
+      document.getElementById("sub-" + s.id).textContent =
+        c >= TARGET ? "已完成" : "还差 " + remain + " 条";
+    });
+    document.getElementById("totalNum").innerHTML = total + '<small> / 700</small>';
+    document.getElementById("doneNum").innerHTML = done + '<small> / 7</small>';
+  }
+
+  var toastTimer;
+  function toast(msg) {
+    var t = document.getElementById("toast");
+    t.textContent = msg;
+    t.classList.add("show");
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(function () { t.classList.remove("show"); }, 1600);
+  }
+
+  document.getElementById("resetAll").addEventListener("click", function () {
+    if (confirm("确定要重置全部 7 个场景的计数吗？")) {
+      counts = {}; save(counts); render(); toast("已全部重置");
+    }
+  });
+
+  render();
+</script>
+</body>
+</html>
